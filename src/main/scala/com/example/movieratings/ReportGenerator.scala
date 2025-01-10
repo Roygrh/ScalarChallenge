@@ -15,9 +15,7 @@ object ReportGenerator {
       sys.exit(1)
     }
 
-    val movieTitlesFile = new File(args(0))
-    val trainingSetDir  = new File(args(1))
-    val outputReport    = new File(args(2))
+    val Array(movieTitlesFile, trainingSetDir, outputReport) = args.map(new File(_))
 
     val moviesInfo: Map[Int, (Int, String)] = readMovieTitles(movieTitlesFile)
 
@@ -48,14 +46,19 @@ object ReportGenerator {
   }
 
   def readMovieTitles(file: File): Map[Int, (Int, String)] = {
-    val lines = Source.fromFile(file).getLines()
-    lines.flatMap { line =>
-      val Array(movieIdString, yearString, title @ _*) = line.split(",", 3)
+    val records = CsvUtils.readFromFileAsList(file)
+
+    records.flatMap { record =>
+
+      val movieIdString = record.get(0)
+      val yearString = record.get(1)
+      val title = record.get(2)
+
       if (yearString != "NULL" && !yearString.isEmpty)
       {
         val movieId = movieIdString.toInt
         val year    = yearString.toInt
-        Some(movieId -> (year, title.mkString))
+        Some(movieId -> (year, title))
       }
       else
       {
@@ -71,15 +74,16 @@ object ReportGenerator {
       file <- trainingDir.listFiles()
       if file.isFile && file.getName.endsWith(".txt")
     } {
-      val lines = Source.fromFile(file).getLines()
-      if (lines.hasNext) {
-        val movieLine = lines.next().trim
-        val movieId   = movieLine.stripSuffix(":").toInt
+      val records = CsvUtils.readFromFileAsList(file)
+
+      if(records.nonEmpty){
+        val movieLine = records.head.get(0).trim
+        val movieId = movieLine.stripSuffix(":").toInt
 
         var (sumRatings, count) = accumulator(movieId)
-        for (ratingLine <- lines) {
-          val Array(_, ratingString, _*) = ratingLine.split(",", 3)
-          val rating = ratingString.toInt
+
+        records.tail.foreach { record =>
+          val rating = record.get(1).toInt
           sumRatings += rating
           count += 1
         }
